@@ -1,0 +1,363 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: chapter5-data-pipeline
+
+Parameters:
+  ApplicationId:
+    Type: String
+
+Outputs:
+  ReportingBucket:
+    Value: !Ref ReportingBucket
+
+  TestReportingBucket:
+    Value: !Ref TestReportingBucket
+
+Resources:
+  ReportingBucket:
+    Type: AWS::S3::Bucket
+
+  TestReportingBucket:
+    Type: AWS::S3::Bucket
+
+  PeriodicStepFunction:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      RoleArn: !GetAtt PeriodicStepFunctionRole.Arn
+      DefinitionString: !Sub |
+        {
+          "StartAt": "Regions",
+          "States": {
+            "Regions": {
+              "Type": "Map",
+              "ItemsPath": "$.regions",
+              "Parameters": {
+                "region.$": "$$.Map.Item.Value",
+                "trigger.$": "$.trigger"
+              },
+              "Iterator": {
+                "StartAt": "ColdQuery",
+                "States": {
+                  "ColdQuery": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Parameters": {
+                      "FunctionName": "${LambdaRegionalProxyFunction.Arn}:$LATEST",
+                      "Payload": {
+                        "invocationClass": "cold",
+                        "region.$": "$.region",
+                        "trigger.$": "$.trigger"
+                      }
+                    },
+                    "TimeoutSeconds": 300,
+                    "ResultPath": null,
+                    "Next": "WaitOne"
+                  },
+                  "WaitOne": {
+                    "Type": "Wait",
+                    "Seconds": 10,
+                    "Next": "WarmOneQuery"
+                  },
+                  "WarmOneQuery": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Parameters": {
+                      "FunctionName": "${LambdaRegionalProxyFunction.Arn}:$LATEST",
+                      "Payload": {
+                        "invocationClass": "warm-one",
+                        "region.$": "$.region",
+                        "trigger.$": "$.trigger"
+                      }
+                    },
+                    "TimeoutSeconds": 30,
+                    "ResultPath": null,
+                    "Next": "WaitTwo"
+                  },
+                  "WaitTwo": {
+                    "Type": "Wait",
+                    "Seconds": 10,
+                    "Next": "WarmTwoQuery"
+                  },
+                  "WarmTwoQuery": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Parameters": {
+                      "FunctionName": "${LambdaRegionalProxyFunction.Arn}:$LATEST",
+                      "Payload": {
+                        "invocationClass": "warm-two",
+                        "region.$": "$.region",
+                        "trigger.$": "$.trigger"
+                      }
+                    },
+                    "TimeoutSeconds": 30,
+                    "ResultPath": null,
+                    "Next": "WaitThree"
+                  },
+                  "WaitThree": {
+                    "Type": "Wait",
+                    "Seconds": 240,
+                    "Next": "CoolQuery"
+                  },
+                  "CoolQuery": {
+                    "Type": "Task",
+                    "Resource": "arn:aws:states:::lambda:invoke",
+                    "Parameters": {
+                      "FunctionName": "${LambdaRegionalProxyFunction.Arn}:$LATEST",
+                      "Payload": {
+                        "invocationClass": "cool",
+                        "region.$": "$.region",
+                        "trigger.$": "$.trigger"
+                      }
+                    },
+                    "TimeoutSeconds": 30,
+                    "ResultPath": null,
+                    "End": true
+                  }
+                }
+              },
+              "ResultPath": null,
+              "Next": "WaitFour"
+            },
+            "WaitFour": {
+              "Type": "Wait",
+              "Seconds": 10,
+              "Next": "TriggerCrawler"
+            },
+            "TriggerCrawler": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${StartCrawlerTriggerFunction.Arn}:$LATEST",
+                "Payload": ""
+              },
+              "TimeoutSeconds": 60,
+              "ResultPath": null,
+              "End": true
+            }
+          }
+        }
+
+  PeriodicStepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: states.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+        - PolicyName: lambda
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Resource:
+                  - !Sub "${LambdaRegionalProxyFunction.Arn}:*"
+                  - !Sub "${StartCrawlerTriggerFunction.Arn}:*"
+                Action:
+                  - lambda:InvokeFunction
+
+  # Necessary because Step Functions won't call Lambda functions in a different region
+  LambdaRegionalProxyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      InlineCode: !Sub |
+        import boto3
+        import json
+
+        def handler(event, context):
+          response = boto3.client('lambda', region_name=event['region']).invoke(
+            FunctionName='${ApplicationId}-query',
+            InvocationType='RequestResponse',
+            Payload=json.dumps(event)
+          )
+          print(response)
+
+      Handler: index.handler
+      Runtime: python3.7
+      MemorySize: 1536
+      Timeout: 300
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource:
+                - !Sub "arn:aws:lambda:us-east-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:us-east-2:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:us-west-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:us-west-2:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:ap-south-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:ap-northeast-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:ap-northeast-2:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:ap-southeast-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:ap-southeast-2:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:eu-central-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:eu-west-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:eu-west-2:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:eu-west-3:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:eu-north-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+                - !Sub "arn:aws:lambda:sa-east-1:${AWS::AccountId}:function:${ApplicationId}-query*"
+
+  TriggerStepFunctionSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "rate(6 hours)"
+      State: "ENABLED"
+      Targets:
+        - Arn: !Ref PeriodicStepFunction
+          RoleArn: !GetAtt TriggerStepFunctionScheduleRole.Arn
+          Id: "StepFunction"
+          Input: |
+            {
+              "trigger": "scheduled",
+              "regions" : [ "us-east-1", "us-east-2", "us-west-1", "us-west-2", "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3", "eu-north-1", "sa-east-1" ]
+            }
+
+  TriggerStepFunctionScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+        - PolicyName: stepFunctions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Resource: !Ref PeriodicStepFunction
+                Action: states:StartExecution
+
+  # **** Analysis
+
+  Database:
+    Type: AWS::Glue::Database
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: lambda_cold_starts
+
+  Table:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref Database
+      TableInput:
+        Name: lambda_cold_starts
+        Retention: 0
+        StorageDescriptor:
+          Location: !Sub "s3://${ReportingBucket}/timings/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Compressed: false
+          NumberOfBuckets: -1
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+            Parameters:
+              paths: "artifactSize,durationMillis,id,invocationClass,memorySize,runtime,timestamp"
+          Columns:
+            - Name: timestamp
+              Type: string
+            - Name: durationMillis
+              Type: int
+            - Name: invocationClass
+              Type: string
+            - Name: region
+              Type: string
+            - Name: runtime
+              Type: string
+            - Name: artifactSize
+              Type: string
+            - Name: memorySize
+              Type: int
+            - Name: id
+              Type: string
+          BucketColumns: []
+          SortColumns: []
+          StoredAsSubDirectories: false
+        PartitionKeys:
+          - Name: date
+            Type: string
+        TableType: EXTERNAL_TABLE
+
+  Crawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: !Ref AWS::StackName
+      Role: !GetAtt CrawlerRole.Arn
+      SchemaChangePolicy:
+        DeleteBehavior: LOG
+        UpdateBehavior: LOG
+      Configuration: >-
+        {
+          "Version": 1.0,
+          "CrawlerOutput": {
+            "Partitions": {
+              "AddOrUpdateBehavior": "InheritFromTable"
+            }
+          }
+        }
+      Targets:
+        CatalogTargets:
+          - DatabaseName: !Ref Database
+            Tables:
+              - !Ref Table
+
+  CrawlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+      Policies:
+        - PolicyName: S3ReadOnlyAccessPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${ReportingBucket}/timings/*"
+
+  CrawlerTrigger:
+    Type: AWS::Glue::Trigger
+    Properties:
+      Type: ON_DEMAND
+      Name: !Sub '${AWS::StackName}_crawler_trigger'
+      Actions:
+        - CrawlerName: !Ref Crawler
+
+  StartCrawlerTriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      InlineCode: !Sub |
+        import boto3
+
+        def handler(event, context):
+          boto3.client('glue').start_trigger(Name = '${CrawlerTrigger}')
+
+      Handler: index.handler
+      Runtime: python3.7
+      MemorySize: 128
+      Timeout: 60
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: glue:StartTrigger
+              Resource: !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:trigger/${CrawlerTrigger}'

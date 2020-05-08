@@ -1,0 +1,465 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: chapter5-data-pipeline
+
+Parameters:
+  ApplicationId:
+    Type: String
+
+  ReportingBucket:
+    Type: String
+
+  TestReportingBucket:
+    Type: String
+
+Globals:
+  Function:
+    Timeout: 10
+
+Outputs:
+  QueryLambda:
+    Value: !Ref QueryLambda
+
+  QueryLambdaArn:
+    Value: !GetAtt QueryLambda.Arn
+
+Resources:
+  QueryLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-query"
+      CodeUri: query/target/lambda.zip
+      Timeout: 300
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.query.QueryLambda::handler
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: '*'
+        - S3WritePolicy:
+            BucketName: !Ref ReportingBucket
+        - S3WritePolicy:
+            BucketName: !Ref TestReportingBucket
+      Environment:
+        Variables:
+          REPORTING_BUCKET: !Ref ReportingBucket
+          TEST_REPORTING_BUCKET: !Ref TestReportingBucket
+          APPLICATION_ID: !Ref ApplicationId
+
+  # *** BENCHMARK LAMBDAS
+
+  # Small Artifact
+  # Java 8
+  # 0.5 GB RAM
+
+  JavaEight512SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-small-one"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEight512SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-small-two"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEight512SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-small-three"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  # 1.5GB RAM
+
+  JavaEight1536SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-1536-small-one"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEight1536SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-1536-small-two"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEight1536SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-1536-small-three"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  # 3GB RAM
+
+  JavaEight3008SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-3008-small-one"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEight3008SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-3008-small-two"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEight3008SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-3008-small-three"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java8
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  # Java 11
+  # 0.5 GB RAM
+
+  JavaEleven512SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-512-small-one"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEleven512SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-512-small-two"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEleven512SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-512-small-three"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  # 1.5GB RAM
+
+  JavaEleven1536SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-1536-small-one"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEleven1536SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-1536-small-two"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEleven1536SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-1536-small-three"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  # 3GB RAM
+
+  JavaEleven3008SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-3008-small-one"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEleven3008SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-3008-small-two"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  JavaEleven3008SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-3008-small-three"
+      CodeUri: benchmark-small/target/lambda.zip
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkSmall.BenchmarkLambda::handler
+
+  # Large Artifact
+  # Java 8
+  # 0.5 GB RAM
+
+  JavaEight512LargeOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-large-one"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight512LargeTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-large-two"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight512LargeThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-large-three"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # 1.5GB RAM
+
+  JavaEight1536LargeOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-1536-large-one"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight1536LargeTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-1536-large-two"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight1536LargeThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-1536-large-three"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # 3GB RAM
+
+  JavaEight3008LargeOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-3008-large-one"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight3008LargeTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-3008-large-two"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight3008LargeThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-3008-large-three"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java8
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # Java 11
+  # 0.5 GB RAM
+
+  JavaEleven512LargeOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-512-large-one"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEleven512LargeTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-512-large-two"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEleven512LargeThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-512-large-three"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # 1.5GB RAM
+
+  JavaEleven1536LargeOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-1536-large-one"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEleven1536LargeTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-1536-large-two"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEleven1536LargeThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-1536-large-three"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 1536
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # 3GB RAM
+
+  JavaEleven3008LargeOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-3008-large-one"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEleven3008LargeTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-3008-large-two"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEleven3008LargeThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java11-3008-large-three"
+      CodeUri: benchmark-large/target/lambda.zip
+      Runtime: java11
+      MemorySize: 3008
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # Large Artifact - UberJar
+  # Java 8
+  # 0.5 GB RAM
+
+  JavaEight512LargeUberJarOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-largeuberjar-one"
+      CodeUri: benchmark-large-uberjar/target/lambda.jar
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight512LargeUberJarTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-largeuberjar-two"
+      CodeUri: benchmark-large-uberjar/target/lambda.jar
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  JavaEight512LargeUberJarThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-java8-512-largeuberjar-three"
+      CodeUri: benchmark-large-uberjar/target/lambda.jar
+      Runtime: java8
+      MemorySize: 512
+      Handler: io.symphonia.lambdaColdStarts.benchmarkLarge.BenchmarkLambda::handler
+
+  # Small Artifact
+  # Python 3.8
+  # 1.5 GB RAM
+
+  PythonThreeEight1536SmallOne:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-python38-1536-small-one"
+      Runtime: python3.8
+      MemorySize: 1536
+      CodeUri: python-benchmark-small/
+      Handler: app.handler
+
+  PythonThreeEight1536SmallTwo:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-python38-1536-small-two"
+      Runtime: python3.8
+      MemorySize: 1536
+      CodeUri: python-benchmark-small/
+      Handler: app.handler
+
+  PythonThreeEight1536SmallThree:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ApplicationId}-python38-1536-small-three"
+      Runtime: python3.8
+      MemorySize: 1536
+      CodeUri: python-benchmark-small/
+      Handler: app.handler
